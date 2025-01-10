@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
+contract DeathCertificateIPFS is AccessControl {
+    bytes32 public constant AUTHORITY_ROLE = keccak256("AUTHORITY_ROLE");
+    bytes32 public constant FAMILY_ROLE = keccak256("FAMILY_ROLE");
+
+    struct CertificateMetadata {
+        bytes32 id;      // Hash of IC
+        string ipfsCID;  // IPFS Content Identifier
+        bool isValid;
+        uint256 timestamp;
+    }
+
+    mapping(bytes32 => CertificateMetadata) private _certificateMetadata;
+    mapping(string => bool) private _usedICs;
+
+    event CertificateCreated(
+        bytes32 indexed certificateId, 
+        string ipfsCID, 
+        uint256 timestamp
+    );
+    event RoleGranted(bytes32 indexed role, address indexed account);
+    event RoleRevoked(bytes32 indexed role, address indexed account);
+
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(AUTHORITY_ROLE, msg.sender);
+        _setRoleAdmin(FAMILY_ROLE, AUTHORITY_ROLE);
+    }
+
+    function generateCertificateId(string memory ic) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(ic));
+    }
+
+    function createCertificate(
+        string memory ic,
+        string memory ipfsCID
+    ) public onlyRole(AUTHORITY_ROLE) returns (bytes32) {
+        require(!_usedICs[ic], "IC already has a death certificate");
+        
+        bytes32 certificateId = generateCertificateId(ic);
+        require(!_certificateMetadata[certificateId].isValid, "Certificate already exists");
+
+        CertificateMetadata memory metadata = CertificateMetadata({
+            id: certificateId,
+            ipfsCID: ipfsCID,
+            isValid: true,
+            timestamp: block.timestamp
+        });
+
+        _certificateMetadata[certificateId] = metadata;
+        _usedICs[ic] = true;
+        
+        emit CertificateCreated(certificateId, ipfsCID, block.timestamp);
+        return certificateId;
+    }
+
+    function getCertificateMetadata(bytes32 certificateId) 
+        public 
+        view 
+        returns (CertificateMetadata memory) 
+    {
+        require(_certificateMetadata[certificateId].isValid, "Certificate does not exist");
+        require(
+            hasRole(AUTHORITY_ROLE, msg.sender) || 
+            hasRole(FAMILY_ROLE, msg.sender),
+            "Caller must have authority or family role"
+        );
+        return _certificateMetadata[certificateId];
+    }
+
+    function grantAuthorityRole(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(AUTHORITY_ROLE, account);
+        emit RoleGranted(AUTHORITY_ROLE, account);
+    }
+
+    function revokeAuthorityRole(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(AUTHORITY_ROLE, account);
+        emit RoleRevoked(AUTHORITY_ROLE, account);
+    }
+
+    function grantFamilyRole(address account) public onlyRole(AUTHORITY_ROLE) {
+        grantRole(FAMILY_ROLE, account);
+        emit RoleGranted(FAMILY_ROLE, account);
+    }
+
+    function revokeFamilyRole(address account) public onlyRole(AUTHORITY_ROLE) {
+        revokeRole(FAMILY_ROLE, account);
+        emit RoleRevoked(FAMILY_ROLE, account);
+    }
+
+    function checkRoles(address account) public view returns (bool isAuthority, bool isFamily) {
+        return (hasRole(AUTHORITY_ROLE, account), hasRole(FAMILY_ROLE, account));
+    }
+}
