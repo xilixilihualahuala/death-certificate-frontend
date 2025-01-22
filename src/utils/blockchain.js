@@ -1,4 +1,3 @@
-// blockchain.js
 import { ethers } from 'ethers';
 
 export const getContract = async (contractAddress, contractABI) => {
@@ -7,12 +6,16 @@ export const getContract = async (contractAddress, contractABI) => {
     }
 
     try {
+        // Request account access
         await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum, {
-            // Disable ENS for networks that don't support it
-            ensAddress: null
-        });
+
+        // Create a provider (remove the ensAddress option)
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        // Get the signer
         const signer = await provider.getSigner();
+
+        // Initialize the contract
         const contract = new ethers.Contract(contractAddress, contractABI, signer);
         return contract;
     } catch (error) {

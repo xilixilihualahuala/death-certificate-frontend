@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { getContract } from '../utils/blockchain'; 
 import { contractABI } from '../contractABI';
 
-const CONTRACT_ADDRESS = '0x59D82984f6E02d340508f9295144b396B52e2cd0';
+const CONTRACT_ADDRESS = '0x507DF1F1249B6EE6913281a4d950b64Eb8D65b8E';
 
 const RetrieveCertificate = () => {
     const [ic, setIC] = useState('');
@@ -11,27 +12,38 @@ const RetrieveCertificate = () => {
     const [userRoles, setUserRoles] = useState({ isAuthority: false, isFamily: false });
     const [status, setStatus] = useState('');
     const [account, setAccount] = useState('');
+    const [error, setError] = useState('');
 
     // Check user roles on component mount and account change
     useEffect(() => {
         const checkUserRoles = async () => {
             if (window.ethereum && account) {
                 try {
+                    console.log('Checking roles for account:', account);
                     const provider = new ethers.BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
                     const contract = new ethers.Contract(
                         CONTRACT_ADDRESS,
                         contractABI,
-                        provider
+                        signer
                     );
                     
                     const roles = await contract.checkRoles(account);
+                    console.log('Roles received:', roles);
+                    
                     setUserRoles({
                         isAuthority: roles[0],
                         isFamily: roles[1]
                     });
+                    
+                    if (!roles[0] && !roles[1]) {
+                        setError('You must have Authority or Family role to view certificates');
+                    } else {
+                        setError('');
+                    }
                 } catch (error) {
                     console.error('Error checking roles:', error);
-                    setStatus('Error checking user roles');
+                    setError('Error checking user roles: ' + error.message);
                 }
             }
         };
@@ -56,18 +68,20 @@ const RetrieveCertificate = () => {
         }
     };
 
+    // Modify the handleRetrieve function
     const handleRetrieve = async () => {
         if (!account) {
-            setStatus('Please connect your wallet first');
+            setError('Please connect your wallet first');
             return;
         }
 
         if (!userRoles.isAuthority && !userRoles.isFamily) {
-            setStatus('You must have Authority or Family role to view certificates');
+            setError('You must have Authority or Family role to view certificates');
             return;
         }
 
         setStatus('Processing...');
+        setError(''); // Clear any previous errors
         
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
@@ -95,10 +109,11 @@ const RetrieveCertificate = () => {
         } catch (error) {
             console.error('Error:', error);
             if (error.message.includes('Certificate does not exist')) {
-                setStatus('No certificate found for this IC number');
+                setError('No certificate found for this IC number');
             } else {
-                setStatus(`Error: ${error.message}`);
+                setError(`Error: ${error.message}`);
             }
+            setStatus(''); // Clear the processing status
         }
     };
 
@@ -115,15 +130,32 @@ const RetrieveCertificate = () => {
                     {account ? `Connected: ${account.substring(0, 6)}...${account.substring(38)}` : 'Connect Wallet'}
                 </button>
             </div>
-
+    
             {/* Role Status */}
             {account && (
                 <div className="mb-4 p-2 bg-gray-100 rounded">
-                    <p>Roles: {userRoles.isAuthority ? '👨‍⚖️ Authority ' : ''} 
-                    {userRoles.isFamily ? '👨‍👩‍👧‍👦 Family' : ''}</p>
+                    <p>
+                        Roles: {userRoles.isAuthority ? '👨‍⚖️ Authority ' : ''} 
+                        {userRoles.isFamily ? '👨‍👩‍👧‍👦 Family' : ''}
+                        {!userRoles.isAuthority && !userRoles.isFamily && 'No roles assigned'}
+                    </p>
                 </div>
             )}
-
+    
+            {/* Error Messages */}
+            {error && (
+                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                    {error}
+                </div>
+            )}
+    
+            {/* Status Messages */}
+            {status && (
+                <div className="mb-4 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+                    {status}
+                </div>
+            )}
+    
             {/* Input Form */}
             <div className="space-y-4">
                 <div>
@@ -131,7 +163,7 @@ const RetrieveCertificate = () => {
                     <input
                         type="text"
                         value={ic}
-                        onChange={(e) => setIC(e.target.value)}
+                        onChange={(e) => setIC(e.target.value.trim())}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                         placeholder="Enter IC Number"
                         required
@@ -139,39 +171,23 @@ const RetrieveCertificate = () => {
                 </div>
                 <button
                     onClick={handleRetrieve}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                    className={`px-4 py-2 rounded-md ${
+                        !account || (!userRoles.isAuthority && !userRoles.isFamily)
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white`}
                     disabled={!account || (!userRoles.isAuthority && !userRoles.isFamily)}
                 >
                     View Certificate
                 </button>
-
-                {/* Status Messages */}
-                {status && (
-                    <div className="mt-4 p-4 bg-gray-100 rounded">
-                        {status}
-                    </div>
-                )}
-
-                {/* Certificate Details */}
-                {certificateMetadata && (
-                    <div className="mt-4 p-4 bg-green-100 rounded space-y-2">
-                        <h2 className="font-semibold">Certificate Details:</h2>
-                        <p>Certificate ID: {certificateId}</p>
-                        <p>IPFS CID: {certificateMetadata.ipfsCID}</p>
-                        <p>Status: {certificateMetadata.isValid ? 'Valid' : 'Invalid'}</p>
-                        <p>Timestamp: {certificateMetadata.timestamp}</p>
-                        <button
-            onClick={() => {
-                const ipfsUrl = `https://ipfs.io/ipfs/${certificateMetadata.ipfsCID}`;
-                window.location.href = ipfsUrl; // Redirect to the IPFS URL
-            }}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-        >
-            View Certificate on IPFS
-        </button>
-                    </div>
-                )}
             </div>
+    
+            {/* Certificate Details */}
+            {certificateMetadata && (
+                <div className="mt-4 p-4 bg-green-100 rounded space-y-2">
+                    {/* ... rest of your certificate details code ... */}
+                </div>
+            )}
         </div>
     );
 };
