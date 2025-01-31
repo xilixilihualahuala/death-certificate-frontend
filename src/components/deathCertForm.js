@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import '../../src/index.css'; 
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { AuthContext } from '../App'; 
 
 const PINATA_API_KEY = 'd5cf5f85350e35c53b62';
 const PINATA_SECRET_KEY = '0a94733425b1f56f354641765314782f13314bc2b89a3a9228a66343b5630fc4';
 
 const DeathCertificateForm = () => {
+    const { account } = useContext(AuthContext); // Get the account
     const [formData, setFormData] = useState({
         fullName: '',
         ic: '',
@@ -132,7 +134,8 @@ const DeathCertificateForm = () => {
                 { label: 'Race:', value: data.race },
                 { label: 'Last Address:', value: data.lastAddress },
                 { label: 'Place of Death:', value: data.placeOfDeath },
-                { label: 'Cause of Death:', value: data.causeOfDeath }
+                { label: 'Cause of Death:', value: data.causeOfDeath },
+                { label: 'MetaMask Address:', value: account }
             ];
 
             let yPosition = 700;
@@ -159,7 +162,7 @@ const DeathCertificateForm = () => {
             // Draw signature image
             page.drawImage(signatureImage, {
                 x: 50,
-                y: 275,
+                y: 210,
                 width: signatureWidth,
                 height: signatureHeight,
             });
@@ -279,6 +282,7 @@ const DeathCertificateForm = () => {
     return (
         <div className="max-w-2xl mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4">Create Death Certificate</h1>
+            <h6>Connected Metamask: {account}</h6>
             
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
