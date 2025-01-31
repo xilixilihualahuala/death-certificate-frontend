@@ -159,7 +159,7 @@ const DeathCertificateForm = () => {
             // Draw signature image
             page.drawImage(signatureImage, {
                 x: 50,
-                y: 165,
+                y: 275,
                 width: signatureWidth,
                 height: signatureHeight,
             });

@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { getContract } from '../utils/blockchain'; 
 import { contractABI } from '../contractABI';
 
-const CONTRACT_ADDRESS = '0x507DF1F1249B6EE6913281a4d950b64Eb8D65b8E';
+const CONTRACT_ADDRESS = '0xC27BF1EdbCa24ef9b7AF5E9EF8199A2801EE869B';
 
 const RetrieveCertificate = () => {
     const [ic, setIC] = useState('');
@@ -185,7 +185,20 @@ const RetrieveCertificate = () => {
             {/* Certificate Details */}
             {certificateMetadata && (
                 <div className="mt-4 p-4 bg-green-100 rounded space-y-2">
-                    {/* ... rest of your certificate details code ... */}
+                    <h2 className="font-semibold">Certificate Details:</h2>
+                        <p>Certificate ID: {certificateId}</p>
+                        <p>IPFS CID: {certificateMetadata.ipfsCID}</p>
+                        <p>Status: {certificateMetadata.isValid ? 'Valid' : 'Invalid'}</p>
+                        <p>Timestamp: {certificateMetadata.timestamp}</p>
+                        <button
+            onClick={() => {
+                const ipfsUrl = `https://ipfs.io/ipfs/${certificateMetadata.ipfsCID}`;
+                window.location.href = ipfsUrl; // Redirect to the IPFS URL
+            }}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+        >
+            View Certificate on IPFS
+        </button>
                 </div>
             )}
         </div>
