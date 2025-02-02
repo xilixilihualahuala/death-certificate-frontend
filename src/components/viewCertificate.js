@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { getContract } from '../utils/blockchain'; 
 import { contractABI } from '../contractABI';
-
-const CONTRACT_ADDRESS = '0xC27BF1EdbCa24ef9b7AF5E9EF8199A2801EE869B';
+import { CONTRACTS } from '../utils/blockchain';
+const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
 const RetrieveCertificate = () => {
     const [ic, setIC] = useState('');
@@ -193,7 +192,7 @@ const RetrieveCertificate = () => {
                         <button
             onClick={() => {
                 const ipfsUrl = `https://ipfs.io/ipfs/${certificateMetadata.ipfsCID}`;
-                window.location.href = ipfsUrl; // Redirect to the IPFS URL
+                window.open(ipfsUrl, '_blank'); // Redirect to the IPFS URL
             }}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
         >

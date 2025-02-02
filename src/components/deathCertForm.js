@@ -3,6 +3,7 @@ import axios from 'axios';
 import '../../src/index.css'; 
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { AuthContext } from '../App'; 
+import { addPendingCertificate } from '../utils/pendingStorage';
 
 const PINATA_API_KEY = 'd5cf5f85350e35c53b62';
 const PINATA_SECRET_KEY = '0a94733425b1f56f354641765314782f13314bc2b89a3a9228a66343b5630fc4';
@@ -176,7 +177,11 @@ const DeathCertificateForm = () => {
             });
 
             // Add date of certification
-            const certificationDate = new Date().toLocaleDateString();
+            const certificationDate = new Date().toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });            
             page.drawText(`Date: ${certificationDate}`, {
                 x: 50,
                 y: 180,
@@ -241,12 +246,10 @@ const DeathCertificateForm = () => {
             const formattedData = formatCertificateData(formData);
             const cid = await uploadToPinata(formattedData);
             setIpfsCID(cid);
-            setStatus('Death Certificate uploaded to IPFS successfully! CID: ' + cid);
-            
-            // Add preview link
-            const previewUrl = `https://gateway.pinata.cloud/ipfs/${cid}`;
-            setStatus(prev => `${prev}\nYou can view the certificate at: ${previewUrl}`);
-            
+
+            addPendingCertificate(formData.ic, cid);
+            setStatus('');
+    
             // Clear form
             setFormData({
                 fullName: '',
@@ -445,10 +448,9 @@ const DeathCertificateForm = () => {
                 </div>
             )}
             
-            {ipfsCID && (
+            {(
                 <div className="mt-4 p-4 bg-green-100 rounded">
-                    <p className="font-medium">IPFS CID (for admin use):</p>
-                    <p className="font-mono break-all">{ipfsCID}</p>
+                    <p className="font-medium">Death Certificate submitted successfully! Please wait for admin to verify it.</p>
                 </div>
             )}
         </div>

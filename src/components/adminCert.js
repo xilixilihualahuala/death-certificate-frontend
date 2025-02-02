@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
-
-const CONTRACT_ADDRESS = '0xC27BF1EdbCa24ef9b7AF5E9EF8199A2801EE869B';
+import { 
+  getPendingCertificates, 
+  removePendingCertificate, 
+  updateCertificateStatus 
+} from '../utils/pendingStorage';
+import { CONTRACTS } from '../utils/blockchain';
+const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
 const AdminCertificateCreator = () => {
+  const [pendingCerts, setPendingCerts] = useState([]);
   const [account, setAccount] = useState('');
   const [isAuthority, setIsAuthority] = useState(false);
   const [formData, setFormData] = useState({
@@ -61,17 +67,15 @@ const AdminCertificateCreator = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!account || !isAuthority) {
-      setError('Please connect with an authority account');
-      return;
-    }
+  useEffect(() => {
+    setPendingCerts(getPendingCertificates());
+  }, []);
 
-    setStatus('Processing...');
-    setError('');
-
+  const handleCreateCertificate = async (ic, cid) => {
     try {
+      updateCertificateStatus(cid, 'processing');
+      setPendingCerts(getPendingCertificates());
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(
@@ -82,10 +86,13 @@ const AdminCertificateCreator = () => {
         signer
       );
 
-      const tx = await contract.createCertificate(formData.ic, formData.ipfsCID);
-      setStatus('Transaction submitted. Waiting for confirmation...');
-      
+      const tx = await contract.createCertificate(ic, cid);
       await tx.wait();
+      
+      // Remove from pending list
+      removePendingCertificate(cid);
+      setPendingCerts(getPendingCertificates());
+      
       setStatus('Certificate created successfully! Transaction hash: ' + tx.hash);
       
       // Clear form
@@ -95,10 +102,30 @@ const AdminCertificateCreator = () => {
       });
     } catch (error) {
       console.error('Error creating certificate:', error);
-      setError('Error creating certificate: ' + error.message);
-      setStatus('');
+
+      // Extract user-friendly error message
+      let errorMessage = 'Error creating certificate: ';
+      if (error.message.includes('user rejected action')) {
+        errorMessage += 'Transaction rejected by user.';
+      } else {
+        errorMessage += error.message;
+      }
+
+      setError(errorMessage);
+
+      // Revert certificate status to "pending"
+      updateCertificateStatus(cid, 'pending');
+      setPendingCerts(getPendingCertificates());
     }
   };
+
+  const handleDeleteCertificate = (cid) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this pending certificate?");
+    if (confirmDelete) {
+        removePendingCertificate(cid);
+        setPendingCerts(getPendingCertificates());
+    }
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -147,8 +174,49 @@ const AdminCertificateCreator = () => {
           </div>
         )}
 
+        {/* Pending Certificates Section */}
+        {pendingCerts.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-4">Pending Certificates</h3>
+            <div className="space-y-4">
+              {pendingCerts.map(({ ic, cid, timestamp, status }) => (
+                <div key={cid} className="p-4 border rounded-md">
+                  <p><strong>IC:</strong> {ic}</p>
+                  <p><strong>IPFS CID:</strong> {cid}</p>
+                  <p><strong>Submitted:</strong> {new Date(timestamp).toLocaleString()}</p>
+                  <p><strong>Status:</strong> {status}</p>
+                  <div className="mt-2 space-x-2">
+                    <button
+                      onClick={() => handleCreateCertificate(ic, cid)}
+                      disabled={status === 'processing'}
+                      className={`bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 
+                        ${status === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {status === 'processing' ? 'Processing...' : 'Verify and Create'}
+                    </button>
+                    <a 
+                      href={`https://gateway.pinata.cloud/ipfs/${cid}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      View Certificate
+                    </a>
+                    <button
+                      onClick={() => handleDeleteCertificate(cid)}
+                      className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  >
+                      Delete
+                  </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Certificate Creation Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleCreateCertificate} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               IC Number

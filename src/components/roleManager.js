@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { contractABI } from '../contractABI';
-
-const CONTRACT_ADDRESS = '0xC27BF1EdbCa24ef9b7AF5E9EF8199A2801EE869B';
+import { CONTRACTS } from '../utils/blockchain';
+const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
 const RoleManager = () => {
     const [account, setAccount] = useState('');

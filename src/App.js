@@ -82,6 +82,7 @@ const AdminRoutes = () => {
   return (account && (roles.isAdmin || roles.isAuthority)) ? (
     <Routes>
       <Route path="/createCert" element={<AdminCert />} />
+      <Route path="/view" element={<ViewCertificate />} />
       <Route path="/roles" element={<RoleManager />} />
     </Routes>
   ) : <Navigate to="/unauthorized" />;
@@ -125,6 +126,7 @@ const Navigation = () => {
             {(account && (roles.isAdmin || roles.isAuthority)) && (
               <>
                 <Link to="/admin/createCert" className="text-gray-700 hover:text-blue-500">Admin Create Cert</Link>
+                <Link to="/admin/view" className="text-gray-700 hover:text-blue-500">View Certificate</Link>
                 <Link to="/admin/roles" className="text-gray-700 hover:text-blue-500">Manage Roles</Link>
               </>
             )}
