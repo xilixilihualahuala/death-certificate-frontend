@@ -73,9 +73,9 @@ class BlockchainService {
     }
 
     // Utility methods for common contract interactions
-    static async createCertificate(ic, ipfsCID) {
+    static async createCertificate(ic, ipfsCID, submitterAddress) {
         const contract = await this.getContract();
-        const tx = await contract.createCertificate(ic, ipfsCID);
+        const tx = await contract.createCertificate(ic, ipfsCID, submitterAddress);
         return tx.wait();
     }
 
@@ -118,6 +118,7 @@ class BlockchainService {
         const contract = await this.getContract();
         return contract.checkRoles(address);
     }
+    
 }
 
 export default BlockchainService;

@@ -5,6 +5,7 @@ import {
   removePendingCertificate, 
   updateCertificateStatus 
 } from '../utils/pendingStorage';
+import BlockchainService from '../utils/blockchain';
 import { CONTRACTS } from '../utils/blockchain';
 const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
@@ -77,18 +78,7 @@ const AdminCertificateCreator = () => {
         updateCertificateStatus(cid, 'processing');
         setPendingCerts(getPendingCertificates());
 
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const contract = new ethers.Contract(
-            CONTRACT_ADDRESS,
-            [
-                'function createCertificate(string memory ic, string memory ipfsCID, address submitterAddress) public returns (bytes32)'
-            ],
-            signer
-        );
-
-        const tx = await contract.createCertificate(ic, cid, submitterAddress);
-        await tx.wait();
+        const tx = await BlockchainService.createCertificate(ic, cid, submitterAddress);
         
         // Remove from pending list
         removePendingCertificate(cid);

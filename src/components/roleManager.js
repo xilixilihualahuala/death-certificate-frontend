@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { contractABI } from '../contractABI';
 import { CONTRACTS } from '../utils/blockchain';
+import BlockchainService from '../utils/blockchain';
 const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
 const RoleManager = () => {
@@ -89,35 +90,29 @@ const RoleManager = () => {
         setError('');
 
         try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-            let tx;
+            let result;
             switch (action) {
                 case 'grantAuthority':
-                    tx = await contract.grantAuthorityRole(targetAddress);
+                    result = await BlockchainService.grantAuthorityRole(targetAddress);
                     break;
                 case 'revokeAuthority':
-                    tx = await contract.revokeAuthorityRole(targetAddress);
+                    result = await BlockchainService.revokeAuthorityRole(targetAddress);
                     break;
                 case 'grantFamily':
-                    tx = await contract.grantFamilyRole(targetAddress);
+                    result = await BlockchainService.grantFamilyRole(targetAddress);
                     break;
                 case 'revokeFamily':
-                    tx = await contract.revokeFamilyRole(targetAddress);
+                    result = await BlockchainService.revokeFamilyRole(targetAddress);
                     break;
                 default:
                     throw new Error('Invalid action');
             }
 
-            setStatus('Transaction submitted. Waiting for confirmation...');
-            await tx.wait();
-            setStatus(`${action} completed successfully! Transaction hash: ${tx.hash}`);
+            setStatus(`${action} completed successfully! Transaction hash: ${result.hash}`);
             setTargetAddress('');
 
             // Refresh roles after successful action
-            const targetRoles = await contract.checkRoles(targetAddress);
+            const targetRoles = await BlockchainService.checkRoles(targetAddress);
             console.log('Updated roles for target address:', targetRoles);
         } catch (error) {
             console.error('Error managing role:', error);
