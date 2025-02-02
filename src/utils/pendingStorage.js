@@ -28,11 +28,12 @@ export const getPendingCertificates = () => {
 };
 
 // Add a new pending certificate
-export const addPendingCertificate = (ic, cid) => {
+export const addPendingCertificate = (ic, cid, submitterAddress) => {
     pendingCertificates.push({
         ic,
         cid,
         timestamp: Date.now(),
+        submitterAddress,
         status: 'pending'
     });
     saveToStorage();

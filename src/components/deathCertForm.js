@@ -247,8 +247,8 @@ const DeathCertificateForm = () => {
             const cid = await uploadToPinata(formattedData);
             setIpfsCID(cid);
 
-            addPendingCertificate(formData.ic, cid);
-            setStatus('');
+            addPendingCertificate(formData.ic, cid, account);
+            setStatus('Death Certificate submitted successfully! Please wait for admin to verify it.');
     
             // Clear form
             setFormData({
@@ -448,11 +448,6 @@ const DeathCertificateForm = () => {
                 </div>
             )}
             
-            {(
-                <div className="mt-4 p-4 bg-green-100 rounded">
-                    <p className="font-medium">Death Certificate submitted successfully! Please wait for admin to verify it.</p>
-                </div>
-            )}
         </div>
     );
 };

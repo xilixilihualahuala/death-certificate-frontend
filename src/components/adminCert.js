@@ -14,7 +14,8 @@ const AdminCertificateCreator = () => {
   const [isAuthority, setIsAuthority] = useState(false);
   const [formData, setFormData] = useState({
     ic: '',
-    ipfsCID: ''
+    ipfsCID: '',
+    submitterAddress: ''
   });
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ const AdminCertificateCreator = () => {
         CONTRACT_ADDRESS,
         [
           'function checkRoles(address account) public view returns (bool isAuthority, bool isFamily)',
-          'function createCertificate(string memory ic, string memory ipfsCID) public returns (bytes32)'
+          'function createCertificate(string memory ic, string memory ipfsCID, address submitterAddress) public returns (bytes32)'
         ],
         signer
       );
@@ -71,53 +72,54 @@ const AdminCertificateCreator = () => {
     setPendingCerts(getPendingCertificates());
   }, []);
 
-  const handleCreateCertificate = async (ic, cid) => {
+  const handleCreateCertificate = async (ic, cid, submitterAddress) => {
     try {
-      updateCertificateStatus(cid, 'processing');
-      setPendingCerts(getPendingCertificates());
+        updateCertificateStatus(cid, 'processing');
+        setPendingCerts(getPendingCertificates());
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        [
-          'function createCertificate(string memory ic, string memory ipfsCID) public returns (bytes32)'
-        ],
-        signer
-      );
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+            CONTRACT_ADDRESS,
+            [
+                'function createCertificate(string memory ic, string memory ipfsCID, address submitterAddress) public returns (bytes32)'
+            ],
+            signer
+        );
 
-      const tx = await contract.createCertificate(ic, cid);
-      await tx.wait();
-      
-      // Remove from pending list
-      removePendingCertificate(cid);
-      setPendingCerts(getPendingCertificates());
-      
-      setStatus('Certificate created successfully! Transaction hash: ' + tx.hash);
-      
-      // Clear form
-      setFormData({
-        ic: '',
-        ipfsCID: ''
-      });
+        const tx = await contract.createCertificate(ic, cid, submitterAddress);
+        await tx.wait();
+        
+        // Remove from pending list
+        removePendingCertificate(cid);
+        setPendingCerts(getPendingCertificates());
+        
+        setStatus('Certificate created successfully! Transaction hash: ' + tx.hash);
+        
+        // Clear form
+        setFormData({
+            ic: '',
+            ipfsCID: '',
+            submitterAddress: ''
+        });
     } catch (error) {
-      console.error('Error creating certificate:', error);
+        console.error('Error creating certificate:', error);
 
-      // Extract user-friendly error message
-      let errorMessage = 'Error creating certificate: ';
-      if (error.message.includes('user rejected action')) {
-        errorMessage += 'Transaction rejected by user.';
-      } else {
-        errorMessage += error.message;
-      }
+        // Extract user-friendly error message
+        let errorMessage = 'Error creating certificate: ';
+        if (error.message.includes('user rejected action')) {
+            errorMessage += 'Transaction rejected by user.';
+        } else {
+            errorMessage += error.message;
+        }
 
-      setError(errorMessage);
+        setError(errorMessage);
 
-      // Revert certificate status to "pending"
-      updateCertificateStatus(cid, 'pending');
-      setPendingCerts(getPendingCertificates());
+        // Revert certificate status to "pending"
+        updateCertificateStatus(cid, 'pending');
+        setPendingCerts(getPendingCertificates());
     }
-  };
+};
 
   const handleDeleteCertificate = (cid) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this pending certificate?");
@@ -179,15 +181,16 @@ const AdminCertificateCreator = () => {
           <div className="mb-6">
             <h3 className="text-xl font-bold mb-4">Pending Certificates</h3>
             <div className="space-y-4">
-              {pendingCerts.map(({ ic, cid, timestamp, status }) => (
+              {pendingCerts.map(({ ic, cid, timestamp, status, submitterAddress }) => (
                 <div key={cid} className="p-4 border rounded-md">
                   <p><strong>IC:</strong> {ic}</p>
                   <p><strong>IPFS CID:</strong> {cid}</p>
                   <p><strong>Submitted:</strong> {new Date(timestamp).toLocaleString()}</p>
                   <p><strong>Status:</strong> {status}</p>
+                  <p><strong>Submitter Address:</strong> {submitterAddress}</p>
                   <div className="mt-2 space-x-2">
                     <button
-                      onClick={() => handleCreateCertificate(ic, cid)}
+                      onClick={() => handleCreateCertificate(ic, cid, submitterAddress)}
                       disabled={status === 'processing'}
                       className={`bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 
                         ${status === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -240,6 +243,21 @@ const AdminCertificateCreator = () => {
               type="text"
               name="ipfsCID"
               value={formData.ipfsCID}
+              onChange={handleChange}
+              className="w-full p-2 border border-gray-300 rounded-md"
+              placeholder="Enter IPFS CID"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Submitter Address
+            </label>
+            <input
+              type="text"
+              name="submitterAddress"
+              value={formData.submitterAddress}
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded-md"
               placeholder="Enter IPFS CID"

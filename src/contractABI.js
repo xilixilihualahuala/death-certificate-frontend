@@ -237,6 +237,11 @@ export const contractABI = [
 				"internalType": "string",
 				"name": "ipfsCID",
 				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "submitterAddress",
+				"type": "address"
 			}
 		],
 		"name": "createCertificate",
@@ -300,6 +305,11 @@ export const contractABI = [
 						"internalType": "uint256",
 						"name": "timestamp",
 						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "submitterAddress",
+						"type": "address"
 					}
 				],
 				"internalType": "struct DeathCertificateIPFS.CertificateMetadata",
