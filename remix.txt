@@ -12,6 +12,7 @@ contract DeathCertificateIPFS is AccessControl {
         string ipfsCID;  // IPFS Content Identifier
         bool isValid;
         uint256 timestamp;
+        address submitterAddress; // Address of the submitter
     }
 
     mapping(bytes32 => CertificateMetadata) private _certificateMetadata;
@@ -20,6 +21,7 @@ contract DeathCertificateIPFS is AccessControl {
     event CertificateCreated(
         bytes32 indexed certificateId, 
         string ipfsCID, 
+        address submitterAddress,
         uint256 timestamp
     );
     event RoleGranted(bytes32 indexed role, address indexed account);
@@ -37,24 +39,27 @@ contract DeathCertificateIPFS is AccessControl {
 
     function createCertificate(
         string memory ic,
-        string memory ipfsCID
+        string memory ipfsCID,
+        address submitterAddress
     ) public onlyRole(AUTHORITY_ROLE) returns (bytes32) {
         require(!_usedICs[ic], "IC already has a death certificate");
         
         bytes32 certificateId = generateCertificateId(ic);
-        require(!_certificateMetadata[certificateId].isValid, "Certificate already exists");
+        require(!_usedICs[ic], "IC already has a death certificate");
+require(!_certificateMetadata[certificateId].isValid, "Certificate already exists");
 
         CertificateMetadata memory metadata = CertificateMetadata({
             id: certificateId,
             ipfsCID: ipfsCID,
             isValid: true,
+            submitterAddress: submitterAddress,
             timestamp: block.timestamp
         });
 
         _certificateMetadata[certificateId] = metadata;
         _usedICs[ic] = true;
         
-        emit CertificateCreated(certificateId, ipfsCID, block.timestamp);
+        emit CertificateCreated(certificateId, ipfsCID, submitterAddress, block.timestamp);
         return certificateId;
     }
 
