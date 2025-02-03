@@ -42,6 +42,12 @@ export const contractABI = [
 			},
 			{
 				"indexed": false,
+				"internalType": "address",
+				"name": "submitterAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
 				"internalType": "uint256",
 				"name": "timestamp",
 				"type": "uint256"

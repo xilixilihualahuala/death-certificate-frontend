@@ -71,8 +71,9 @@ require(!_certificateMetadata[certificateId].isValid, "Certificate already exist
         require(_certificateMetadata[certificateId].isValid, "Certificate does not exist");
         require(
             hasRole(AUTHORITY_ROLE, msg.sender) || 
-            hasRole(FAMILY_ROLE, msg.sender),
-            "Caller must have authority or family role"
+            hasRole(FAMILY_ROLE, msg.sender) ||
+            msg.sender == _certificateMetadata[certificateId].submitterAddress,
+            "Unauthorized access"
         );
         return _certificateMetadata[certificateId];
     }

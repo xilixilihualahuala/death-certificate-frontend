@@ -4,7 +4,7 @@ import { contractABI } from '../contractABI';
 
 export const CONTRACTS = {
     DEATH_CERTIFICATE: {
-        ADDRESS: '0x2bF9d43Eb1A27fF9f1686b5a9cAe868fe7F4DdcC',
+        ADDRESS: '0xCd154e77d5Ba49A650f2955E8D83a7765743966e',
     }
 };
 
