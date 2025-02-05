@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import '../../src/index.css'; 
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { AuthContext } from '../App'; 
 import { addPendingCertificate } from '../utils/pendingStorage';
 
@@ -89,113 +90,142 @@ const DeathCertificateForm = () => {
     };
 
     const generatePDF = async (data) => {
+    try {
+        const pdfDoc = await PDFDocument.create();
+        
+        // Register fontkit
+        pdfDoc.registerFontkit(fontkit);
+        
+        const page = pdfDoc.addPage([595.276, 841.890]); // A4 size
+        
+        // Load and embed Helvetica as the default font (more reliable for text encoding)
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontSize = 12;
+
+        // Load and embed images
+        let signatureImage, logoImage;
         try {
-            const pdfDoc = await PDFDocument.create();
-            const page = pdfDoc.addPage([595.276, 841.890]); // A4 size
-            const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-            const fontSize = 12;
-
-            let signatureImage;
-            try {
-                const signatureImageResponse = await fetch('./signature.png');
-                if (!signatureImageResponse.ok) {
-                    throw new Error(`HTTP error! status: ${signatureImageResponse.status}`);
-                }
-                const signatureImageBytes = await signatureImageResponse.arrayBuffer();
-                signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-            } catch (signatureError) {
-                console.error('Failed to load signature:', signatureError);
-                // Continue without signature
+            const signatureImageResponse = await fetch('./signature.png');
+            const logoImageResponse = await fetch('./jpn.png');
+            
+            if (!signatureImageResponse.ok || !logoImageResponse.ok) {
+                throw new Error(`HTTP error! status: ${signatureImageResponse.status}`);
             }
+            
+            const signatureImageBytes = await signatureImageResponse.arrayBuffer();
+            const logoImageBytes = await logoImageResponse.arrayBuffer();
+            
+            signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+            logoImage = await pdfDoc.embedPng(logoImageBytes);
+        } catch (imageError) {
+            console.error('Failed to load images:', imageError);
+        }
 
-            // Calculate signature image dimensions (adjust as needed)
-            const signatureWidth = 100; // Adjust based on your image
-            const signatureHeight = 50; // Adjust based on your image
-
-            // Add title
-            page.drawText('DEATH CERTIFICATE', {
-                x: 200,
-                y: 800,
-                size: 20,
-                font,
-                color: rgb(0, 0, 0),
-            });
-
-            // Format date for display
-            const deathDate = new Date(data.dateTimeOfDeath * 1000);
-            const formattedDate = deathDate.toLocaleString();
-
-            // Add certificate content
-            const content = [
-                { label: 'Full Name:', value: data.fullName },
-                { label: 'IC Number:', value: data.ic },
-                { label: 'Age:', value: `${data.age} years` },
-                { label: 'Gender:', value: data.gender },
-                { label: 'Date and Time of Death:', value: formattedDate },
-                { label: 'Race:', value: data.race },
-                { label: 'Last Address:', value: data.lastAddress },
-                { label: 'Place of Death:', value: data.placeOfDeath },
-                { label: 'Cause of Death:', value: data.causeOfDeath },
-                { label: 'MetaMask Address:', value: account }
-            ];
-
-            let yPosition = 700;
-            content.forEach(({ label, value }) => {
-                page.drawText(`${label} ${value}`, {
-                    x: 50,
-                    y: yPosition,
-                    size: fontSize,
-                    font,
-                    color: rgb(0, 0, 0),
-                });
-                yPosition -= 30;
-            });
-
-            // Add certification statement
-            page.drawText('Certified as a true extract from the Register Death', {
+        // Draw logo in top left
+        if (logoImage) {
+            const logoWidth = 50;
+            const logoHeight = 50;
+            page.drawImage(logoImage, {
                 x: 50,
-                y: 300,
+                y: 780,
+                width: logoWidth,
+                height: logoHeight,
+            });
+        }
+
+        // Add title
+        page.drawText('DEATH CERTIFICATE', {
+            x: 200,
+            y: 800,
+            size: 20,
+            font,
+            color: rgb(0, 0, 0),
+        });
+
+        // Format date for display
+        const deathDate = new Date(data.dateTimeOfDeath * 1000);
+        const formattedDate = deathDate.toLocaleString();
+
+        // Add certificate content
+        const content = [
+            { label: 'Full Name:', value: data.fullName },
+            { label: 'IC Number:', value: data.ic },
+            { label: 'Age:', value: `${data.age} years` },
+            { label: 'Gender:', value: data.gender },
+            { label: 'Date and Time of Death:', value: formattedDate },
+            { label: 'Race:', value: data.race },
+            { label: 'Last Address:', value: data.lastAddress },
+            { label: 'Place of Death:', value: data.placeOfDeath },
+            { label: 'Cause of Death:', value: data.causeOfDeath },
+            { label: 'MetaMask Address:', value: account }
+        ];
+
+        let yPosition = 700;
+        content.forEach(({ label, value }) => {
+            // Ensure proper text encoding for each line
+            const text = `${label} ${value}`;
+            page.drawText(text, {
+                x: 50,
+                y: yPosition,
                 size: fontSize,
                 font,
                 color: rgb(0, 0, 0),
+                lineHeight: fontSize * 1.2,
             });
+            yPosition -= 30;
+        });
 
-            // Draw signature image
+        // Add certification statement with proper encoding
+        const certificationText = 'Certified as a true extract from the Register of Death';
+        page.drawText(certificationText, {
+            x: 50,
+            y: 300,
+            size: fontSize,
+            font,
+            color: rgb(0, 0, 0),
+            lineHeight: fontSize * 1.2,
+        });
+
+        // Draw signature image
+        if (signatureImage) {
+            const signatureWidth = 100;
+            const signatureHeight = 50;
             page.drawImage(signatureImage, {
                 x: 50,
                 y: 210,
                 width: signatureWidth,
                 height: signatureHeight,
             });
+        }
 
-            // Add signature line
-            page.drawLine({
-                start: { x: 50, y: 200 },
-                end: { x: 200, y: 200 },
-                thickness: 1,
-                color: rgb(0, 0, 0),
-            });
+        // Add signature line
+        page.drawLine({
+            start: { x: 50, y: 200 },
+            end: { x: 200, y: 200 },
+            thickness: 1,
+            color: rgb(0, 0, 0),
+        });
 
-            // Add date of certification
-            const certificationDate = new Date().toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });            
-            page.drawText(`Date: ${certificationDate}`, {
-                x: 50,
-                y: 180,
-                size: fontSize,
-                font,
-                color: rgb(0, 0, 0),
-            });
+        // Add date of certification
+        const certificationDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });            
+        page.drawText(`Date: ${certificationDate}`, {
+            x: 50,
+            y: 180,
+            size: fontSize,
+            font,
+            color: rgb(0, 0, 0),
+        });
 
-            return await pdfDoc.save();
+        return await pdfDoc.save();
     } catch (error) {
         console.error('PDF generation error:', error);
         throw new Error(`Failed to generate PDF: ${error.message}`);
     }
-    };
+};
 
     const uploadToPinata = async (data) => {
         try {

@@ -9,8 +9,8 @@ import ViewCertificate from './components/viewCertificate';
 import AdminCert from './components/adminCert';
 import DeathCertificateForm from './components/deathCertForm';
 import UnauthorizedPage from './components/UnauthorizedPage';
-
-const CONTRACT_ADDRESS = '0xC27BF1EdbCa24ef9b7AF5E9EF8199A2801EE869B';
+import { CONTRACTS } from './utils/blockchain';
+const CONTRACT_ADDRESS = CONTRACTS.DEATH_CERTIFICATE.ADDRESS;
 
 // Authentication Context
 export const AuthContext = createContext(null);
