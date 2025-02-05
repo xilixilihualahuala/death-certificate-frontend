@@ -19,8 +19,7 @@ const AuthProvider = ({ children }) => {
   const [account, setAccount] = useState(null);
   const [roles, setRoles] = useState({
     isAdmin: false,
-    isAuthority: false,
-    isFamily: false
+    isAuthority: false
   });
 
   const connectWallet = async () => {
@@ -41,18 +40,15 @@ const AuthProvider = ({ children }) => {
 
       const adminRole = await contract.DEFAULT_ADMIN_ROLE();
       const authorityRole = await contract.AUTHORITY_ROLE();
-      const familyRole = await contract.FAMILY_ROLE();
 
-      const [isAdminRole, isAuthorityRole, isFamilyRole] = await Promise.all([
+      const [isAdminRole, isAuthorityRole] = await Promise.all([
         contract.hasRole(adminRole, userAddress),
-        contract.hasRole(authorityRole, userAddress),
-        contract.hasRole(familyRole, userAddress)
+        contract.hasRole(authorityRole, userAddress)
       ]);
 
       setRoles({
         isAdmin: isAdminRole,
-        isAuthority: isAuthorityRole,
-        isFamily: isFamilyRole
+        isAuthority: isAuthorityRole
       });
     } catch (error) {
       console.error('Role checking error:', error);
@@ -61,7 +57,7 @@ const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setAccount(null);
-    setRoles({ isAdmin: false, isAuthority: false, isFamily: false });
+    setRoles({ isAdmin: false, isAuthority: false });
   };
 
   return (
@@ -82,18 +78,7 @@ const AdminRoutes = () => {
   return (account && (roles.isAdmin || roles.isAuthority)) ? (
     <Routes>
       <Route path="/createCert" element={<AdminCert />} />
-      <Route path="/view" element={<ViewCertificate />} />
       <Route path="/roles" element={<RoleManager />} />
-    </Routes>
-  ) : <Navigate to="/unauthorized" />;
-};
-
-const FamilyRoutes = () => {
-  const { roles, account } = React.useContext(AuthContext);
-  
-  return (account && roles.isFamily) ? (
-    <Routes>
-      <Route path="/view" element={<ViewCertificate />} />
     </Routes>
   ) : <Navigate to="/unauthorized" />;
 };
@@ -104,6 +89,7 @@ const PublicRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={account ? <DeathCertificateForm /> : <Navigate to="/unauthorized" />} />
+      <Route path="/view" element={account ? <ViewCertificate /> : <Navigate to="/unauthorized" />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
     </Routes>
   );
@@ -117,16 +103,16 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex space-x-4">
-            {account && <Link to="/" className="text-gray-700 hover:text-blue-500">Create Certificate</Link>}
-            
-            {(account && roles.isFamily) && (
-              <Link to="/family/view" className="text-gray-700 hover:text-blue-500">View Certificate</Link>
+            {account && (
+              <>
+                <Link to="/" className="text-gray-700 hover:text-blue-500">Create Certificate</Link>
+                <Link to="/view" className="text-gray-700 hover:text-blue-500">View Certificate</Link>
+              </>
             )}
             
             {(account && (roles.isAdmin || roles.isAuthority)) && (
               <>
                 <Link to="/admin/createCert" className="text-gray-700 hover:text-blue-500">Admin Create Cert</Link>
-                <Link to="/admin/view" className="text-gray-700 hover:text-blue-500">View Certificate</Link>
                 <Link to="/admin/roles" className="text-gray-700 hover:text-blue-500">Manage Roles</Link>
               </>
             )}
@@ -167,7 +153,6 @@ function App() {
           <Routes>
             <Route path="/*" element={<PublicRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
-            <Route path="/family/*" element={<FamilyRoutes />} />
           </Routes>
         </div>
       </Router>

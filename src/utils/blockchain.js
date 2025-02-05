@@ -76,6 +76,9 @@ class BlockchainService {
     static async createCertificate(ic, ipfsCID, submitterAddress) {
         const contract = await this.getContract();
         const tx = await contract.createCertificate(ic, ipfsCID, submitterAddress);
+        console.log(ic);
+        console.log(ipfsCID);
+        console.log(submitterAddress);
         return tx.wait();
     }
 
