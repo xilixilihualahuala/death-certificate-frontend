@@ -4,13 +4,14 @@ import '../../src/index.css';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { AuthContext } from '../App'; 
-import { addPendingCertificate } from '../utils/pendingStorage';
+import { addPendingCertificate, getPendingCertificates } from '../utils/pendingStorage';
+import BlockchainService from '../utils/blockchain';
 
 const PINATA_API_KEY = 'd5cf5f85350e35c53b62';
 const PINATA_SECRET_KEY = '0a94733425b1f56f354641765314782f13314bc2b89a3a9228a66343b5630fc4';
 
 const DeathCertificateForm = () => {
-    const { account } = useContext(AuthContext); // Get the account
+    const { account } = useContext(AuthContext);
     const [formData, setFormData] = useState({
         fullName: '',
         ic: '',
@@ -27,8 +28,8 @@ const DeathCertificateForm = () => {
     const [status, setStatus] = useState('');
     const [ipfsCID, setIpfsCID] = useState('');
     const [maxDateTime, setMaxDateTime] = useState('');
+    const [isCheckingIC, setIsCheckingIC] = useState(false);
 
-    // Set max date-time to current date and time
     useEffect(() => {
         const now = new Date();
         const offset = now.getTimezoneOffset();
@@ -36,10 +37,76 @@ const DeathCertificateForm = () => {
         setMaxDateTime(now.toISOString().slice(0, 16));
     }, []);
 
-    const validateForm = () => {
+    // New function to check IC in blockchain
+    const checkICInBlockchain = async (ic) => {
+        try {
+            const certificateId = await BlockchainService.generateCertificateId(ic);
+            const metadata = await BlockchainService.getCertificateMetadata(certificateId);
+            return metadata && metadata.isValid;
+        } catch (error) {
+            console.error('Error checking IC in blockchain:', error);
+            return false;
+        }
+    };
+
+    // New function to check IC in pending list
+    const checkICInPendingList = (ic) => {
+        const pendingCerts = getPendingCertificates();
+        return pendingCerts.some(cert => cert.ic === ic);
+    };
+
+    // New function to validate IC
+    const validateIC = async (ic) => {
+        setIsCheckingIC(true);
+        setErrors(prev => ({ ...prev, ic: '' }));
+        
+        try {
+            // First check format
+            if (!/^\d{12}$/.test(ic)) {
+                setErrors(prev => ({ 
+                    ...prev, 
+                    ic: 'IC number must be exactly 12 digits' 
+                }));
+                return false;
+            }
+
+            // Check blockchain
+            const existsInBlockchain = await checkICInBlockchain(ic);
+            if (existsInBlockchain) {
+                setErrors(prev => ({ 
+                    ...prev, 
+                    ic: 'This IC number already has a death certificate in the system' 
+                }));
+                return false;
+            }
+
+            // Check pending list
+            const existsInPending = checkICInPendingList(ic);
+            if (existsInPending) {
+                setErrors(prev => ({ 
+                    ...prev, 
+                    ic: 'A death certificate for this IC is pending verification' 
+                }));
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error validating IC:', error);
+            setErrors(prev => ({ 
+                ...prev, 
+                ic: 'Error checking IC number. Please try again.' 
+            }));
+            return false;
+        } finally {
+            setIsCheckingIC(false);
+        }
+    };
+
+    const validateForm = async () => {
         const newErrors = {};
         
-        // Check if all required fields are filled
+        // Check required fields
         const requiredFields = Object.keys(formData);
         requiredFields.forEach(field => {
             if (!formData[field]) {
@@ -47,14 +114,12 @@ const DeathCertificateForm = () => {
             }
         });
 
-        // IC validation (12 digits)
-        if (formData.ic) {
-            if (!/^\d{12}$/.test(formData.ic)) {
-                newErrors.ic = 'IC number must be exactly 12 digits';
-            }
+        // Validate IC
+        if (formData.ic && !await validateIC(formData.ic)) {
+            return false;
         }
 
-        // Age validation (positive number)
+        // Age validation
         if (formData.age) {
             const ageNum = parseInt(formData.age);
             if (isNaN(ageNum) || ageNum <= 0 || ageNum > 150) {
@@ -62,7 +127,7 @@ const DeathCertificateForm = () => {
             }
         }
 
-        // Date and time validation (not in future)
+        // Date validation
         if (formData.dateTimeOfDeath) {
             const deathDate = new Date(formData.dateTimeOfDeath);
             const now = new Date();
@@ -265,7 +330,7 @@ const DeathCertificateForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!validateForm()) {
+        if (!await validateForm()) {
             setStatus('Please fix the errors before submitting.');
             return;
         }
@@ -280,7 +345,6 @@ const DeathCertificateForm = () => {
             addPendingCertificate(formData.ic, cid, account);
             setStatus('Death Certificate submitted successfully! Please wait for admin to verify it.');
     
-            // Clear form
             setFormData({
                 fullName: '',
                 ic: '',
@@ -297,10 +361,9 @@ const DeathCertificateForm = () => {
         }
     };
 
-    const handleChange = (e) => {
+    const handleChange = async (e) => {
         const { name, value } = e.target;
         
-        // Clear error when field is edited
         setErrors(prev => ({
             ...prev,
             [name]: ''
@@ -310,6 +373,11 @@ const DeathCertificateForm = () => {
             ...prev,
             [name]: value
         }));
+
+        // Validate IC when it changes
+        if (name === 'ic' && value.length === 12) {
+            await validateIC(value);
+        }
     };
 
     return (
@@ -334,17 +402,24 @@ const DeathCertificateForm = () => {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700">IC Number</label>
-                    <input
-                        type="text"
-                        name="ic"
-                        value={formData.ic.trim()}
-                        onChange={handleChange}
-                        maxLength={12}
-                        className={`mt-1 block w-full border rounded-md shadow-sm p-2 ${
-                            errors.ic ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter 12 digit IC number"
-                    />
+                    <div className="relative">
+                        <input
+                            type="text"
+                            name="ic"
+                            value={formData.ic.trim()}
+                            onChange={handleChange}
+                            maxLength={12}
+                            className={`mt-1 block w-full border rounded-md shadow-sm p-2 ${
+                                errors.ic ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            placeholder="Enter 12 digit IC number"
+                        />
+                        {isCheckingIC && (
+                            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
+                                Checking...
+                            </span>
+                        )}
+                    </div>
                     {errors.ic && (
                         <p className="text-red-500 text-sm mt-1">{errors.ic}</p>
                     )}
@@ -465,6 +540,7 @@ const DeathCertificateForm = () => {
                 <button
                     type="submit"
                     className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                    disabled={isCheckingIC}
                 >
                     Submit
                 </button>
